@@ -192,6 +192,42 @@ else
 fi
 
 # ─────────────────────────────────────────
+# STEP 6c — Setup OAuth 2.0
+# ─────────────────────────────────────────
+ENABLE_OAUTH=$(grep '^ENABLE_OAUTH=' ${DEPLOY_DIR}/.env | cut -d= -f2)
+OAUTH_IDENTITY_URL=$(grep '^OAUTH_IDENTITY_URL=' ${DEPLOY_DIR}/.env | cut -d= -f2)
+OAUTH_CLIENT_ID=$(grep '^OAUTH_CLIENT_ID=' ${DEPLOY_DIR}/.env | cut -d= -f2)
+OAUTH_CLIENT_SECRET=$(grep '^OAUTH_CLIENT_SECRET=' ${DEPLOY_DIR}/.env | cut -d= -f2-)
+
+if [ "$ENABLE_OAUTH" = "true" ]; then
+  echo "🔐 Setting up OAuth 2.0..."
+
+  docker exec creatio-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+    UPDATE \"AdminUnitFeatureState\"
+    SET \"FeatureState\" = 1
+    WHERE \"FeatureId\" = (
+      SELECT \"Id\" FROM \"Feature\"
+      WHERE \"Code\" = 'OAuth20Integration'
+    )" 2>/dev/null || true
+
+  docker exec creatio-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+    UPDATE \"SysSettingsValue\" SET \"TextValue\" = '${OAUTH_IDENTITY_URL}'
+    WHERE \"SysSettingsId\" = (SELECT \"Id\" FROM \"SysSettings\" WHERE \"Code\" = 'OAuth20IdentityServerUrl');" 2>/dev/null || true
+
+  docker exec creatio-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+    UPDATE \"SysSettingsValue\" SET \"TextValue\" = '${OAUTH_CLIENT_ID}'
+    WHERE \"SysSettingsId\" = (SELECT \"Id\" FROM \"SysSettings\" WHERE \"Code\" = 'OAuth20IdentityServerClientId');" 2>/dev/null || true
+
+  docker exec creatio-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+    UPDATE \"SysSettingsValue\" SET \"TextValue\" = '${OAUTH_CLIENT_SECRET}'
+    WHERE \"SysSettingsId\" = (SELECT \"Id\" FROM \"SysSettings\" WHERE \"Code\" = 'OAuth20IdentityServerClientSecret');" 2>/dev/null || true
+
+  echo "   ✅ OAuth 2.0 configured."
+else
+  echo "🔐 OAuth 2.0 disabled, skipping."
+fi
+
+# ─────────────────────────────────────────
 # STEP 7 — Docker compose up
 # ─────────────────────────────────────────
 echo "🐳 Starting containers..."
@@ -199,7 +235,15 @@ cd ${DEPLOY_DIR}
 docker compose down -v 2>/dev/null || true
 docker compose up -d --build
 
+SERVER_IP=$(curl -s -4 ifconfig.me)
+
 echo ""
-echo "✅ Deploy complete!"
-echo "   Creatio : http://$(curl -s -4 ifconfig.me):${CREATIO_PORT}"
-echo "   pgAdmin : http://$(curl -s -4 ifconfig.me):${PGADMIN_PORT}"
+echo "╔══════════════════════════════════════════════════╗"
+echo "║           ✅ DEPLOY COMPLETE                     ║"
+echo "╠══════════════════════════════════════════════════╣"
+echo "║  Creatio  : http://${SERVER_IP}:${CREATIO_PORT}"
+echo "║  pgAdmin  : http://${SERVER_IP}:${PGADMIN_PORT}"
+if [ "$ENABLE_OAUTH" = "true" ]; then
+echo "║  Identity : ${OAUTH_IDENTITY_URL}"
+fi
+echo "╚══════════════════════════════════════════════════╝"
