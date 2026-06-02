@@ -428,6 +428,15 @@ cd ${DEPLOY_DIR}
 docker compose down 2>/dev/null || true
 docker compose up -d --build
 
+# Cek port Identity Service yang jalan
+IDENTITY_PORT=$(docker ps --format "{{.Ports}}" --filter "name=creatio-identity" | grep -oE '0\.0\.0\.0:[0-9]+->80' | grep -oE ':[0-9]+' | tr -d ':' | head -1)
+IDENTITY_INFO=""
+if [ -n "$IDENTITY_PORT" ]; then
+  IDENTITY_INFO="http://localhost:${IDENTITY_PORT}"
+else
+  IDENTITY_INFO="Not running"
+fi
+
 echo ""
 echo "╔══════════════════════════════════════════════════╗"
 echo "║           ✅ DEPLOY COMPLETE                     ║"
@@ -435,6 +444,7 @@ echo "╠═══════════════════════�
 echo "║  Instance : ${INSTANCE}"
 echo "║  Creatio  : http://localhost:${CREATIO_PORT}"
 echo "║  pgAdmin  : http://localhost:${PGADMIN_PORT}"
+echo "║  Identity : ${IDENTITY_INFO}"
 echo "║  DB       : ${POSTGRES_DB}"
 echo "║  Redis DB : ${REDIS_DB}"
 echo "╚══════════════════════════════════════════════════╝"
