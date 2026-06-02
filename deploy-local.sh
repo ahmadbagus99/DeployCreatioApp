@@ -344,6 +344,44 @@ else
 fi
 
 # ─────────────────────────────────────────
+# STEP 8b — Setup OAuth 2.0
+# ─────────────────────────────────────────
+ENABLE_OAUTH=$(grep '^ENABLE_OAUTH=' $ENV_FILE | cut -d= -f2)
+OAUTH_IDENTITY_URL=$(grep '^OAUTH_IDENTITY_URL=' $ENV_FILE | cut -d= -f2)
+OAUTH_CLIENT_ID=$(grep '^OAUTH_CLIENT_ID=' $ENV_FILE | cut -d= -f2)
+OAUTH_CLIENT_SECRET=$(grep '^OAUTH_CLIENT_SECRET=' $ENV_FILE | cut -d= -f2-)
+
+if [ "$ENABLE_OAUTH" = "true" ]; then
+  echo "🔐 Setting up OAuth 2.0..."
+
+  # Enable OAuth feature di DB
+  docker exec creatio-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+    UPDATE \"AdminUnitFeatureState\"
+    SET \"FeatureState\" = 1
+    WHERE \"FeatureId\" = (
+      SELECT \"Id\" FROM \"Feature\"
+      WHERE \"Code\" = 'OAuth20Integration'
+    )" 2>/dev/null || true
+
+  # Set system settings via DB
+  docker exec creatio-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+    UPDATE \"SysSettingsValue\" SET \"TextValue\" = '${OAUTH_IDENTITY_URL}'
+    WHERE \"SysSettingsId\" = (SELECT \"Id\" FROM \"SysSettings\" WHERE \"Code\" = 'OAuth20IdentityServerUrl');" 2>/dev/null || true
+
+  docker exec creatio-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+    UPDATE \"SysSettingsValue\" SET \"TextValue\" = '${OAUTH_CLIENT_ID}'
+    WHERE \"SysSettingsId\" = (SELECT \"Id\" FROM \"SysSettings\" WHERE \"Code\" = 'OAuth20IdentityServerClientId');" 2>/dev/null || true
+
+  docker exec creatio-postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+    UPDATE \"SysSettingsValue\" SET \"TextValue\" = '${OAUTH_CLIENT_SECRET}'
+    WHERE \"SysSettingsId\" = (SELECT \"Id\" FROM \"SysSettings\" WHERE \"Code\" = 'OAuth20IdentityServerClientSecret');" 2>/dev/null || true
+
+  echo "   ✅ OAuth 2.0 configured."
+else
+  echo "🔐 OAuth 2.0 disabled, skipping."
+fi
+
+# ─────────────────────────────────────────
 # STEP 9 — Buat docker-compose per instance
 # ─────────────────────────────────────────
 echo "🐳 Preparing docker-compose for instance ${INSTANCE}..."
