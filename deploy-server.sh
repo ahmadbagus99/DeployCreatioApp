@@ -404,10 +404,21 @@ if [ "$ENABLE_OAUTH" = "true" ]; then
     fi
   fi
 
-  # Generate sertifikat openssl.pfx kalau belum ada (dibutuhkan IdentityService di /app)
+  # Generate sertifikat openssl.pfx kalau belum ada (dibutuhkan IdentityService di /app).
+  # Generate langsung pakai openssl (script bawaan zip ber-line-ending CRLF, tidak dipakai).
   if [ ! -f "${IDENTITY_DIR}/openssl.pfx" ]; then
     echo "   🔑 Generating openssl.pfx..."
-    bash "${IDENTITY_DIR}/pfx/linux/generate_pfx.sh" "creatio" "${IDENTITY_DIR}" >/dev/null 2>&1
+    openssl req -x509 -newkey rsa:2048 -nodes -days 1095 \
+      -keyout "${IDENTITY_DIR}/.key.pem" -out "${IDENTITY_DIR}/.cert.pem" \
+      -subj "/C=CY/L=Nicosia/O=CREATIO EMEA LTD" >/dev/null 2>&1
+    openssl pkcs12 -export -out "${IDENTITY_DIR}/openssl.pfx" \
+      -inkey "${IDENTITY_DIR}/.key.pem" -in "${IDENTITY_DIR}/.cert.pem" \
+      -passout pass: >/dev/null 2>&1
+    rm -f "${IDENTITY_DIR}/.key.pem" "${IDENTITY_DIR}/.cert.pem"
+    if [ ! -f "${IDENTITY_DIR}/openssl.pfx" ]; then
+      echo "   ❌ Gagal generate openssl.pfx (cek instalasi openssl)."
+      exit 1
+    fi
   fi
 
   # Generate appsettings.json khusus instance ini.
