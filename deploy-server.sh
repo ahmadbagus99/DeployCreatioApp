@@ -418,7 +418,7 @@ if [ "$ENABLE_OAUTH" = "true" ]; then
   python3 - "${IDENTITY_DIR}/appsettings.json" "${POSTGRES_HOST}" "${POSTGRES_DB}" "${POSTGRES_USER}" "${POSTGRES_PASSWORD}" "${REDIRECT_BASE}" "${OAUTH_CLIENT_ID}" "${OAUTH_CLIENT_SECRET}" << 'PY'
 import json, sys
 path, host, db, user, pw, base, cid, secret = sys.argv[1:9]
-with open(path) as f:
+with open(path, encoding="utf-8-sig") as f:
     cfg = json.load(f)
 cfg["DbProvider"] = "Postgres"
 cfg["PostgresConnection"] = f"Host={host};Port=5432;Database={db};Username={user};Password={pw}"
