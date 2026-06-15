@@ -431,8 +431,12 @@ import json, sys
 path, host, db, user, pw, base, cid, secret = sys.argv[1:9]
 with open(path, encoding="utf-8-sig") as f:
     cfg = json.load(f)
+conn = f"Host={host};Port=5432;Database={db};Username={user};Password={pw}"
 cfg["DbProvider"] = "Postgres"
-cfg["PostgresConnection"] = f"Host={host};Port=5432;Database={db};Username={user};Password={pw}"
+# Versi IdentityService dari zip membaca "DatabaseConnectionString" (bukan
+# "PostgresConnection"). Set keduanya supaya cocok lintas versi.
+cfg["DatabaseConnectionString"] = conn
+cfg["PostgresConnection"] = conn
 cfg["AllowedCorsOrigins"] = json.dumps([base])
 try:
     clients = json.loads(cfg.get("Clients", "[]"))
